@@ -1,5 +1,7 @@
 ## Overview
 
+**MyuEmu** configure for window and show feature with click right
+
 **uEmu** is a tiny cute emulator plugin for IDA based on unicorn engine.
 
 Supports following architectures out of the box: **x86**, **x64**, **ARM**, **ARM64**, **MIPS**, **MIPS64**
