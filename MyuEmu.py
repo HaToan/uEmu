@@ -901,7 +901,7 @@ class uEmuMappeduMemoryView(IDAAPI_Choose):
     def OnDeleteLine(self, n): # Save JSON
         filePath = IDAAPI_AskFile(1, "*.bin", "Dump memory")
         if filePath is not None:
-            with open(filePath, 'w') as outfile:
+            with open(filePath, 'wb') as outfile:
                 address = self.items[n][0]
                 size = self.items[n][1] - self.items[n][0] + 1
                 outfile.seek(0, 0)
@@ -1432,7 +1432,7 @@ class uEmuUnicornEngine(object):
             return False
 
     def run_from(self, address):
-        print(self.uc_arch + self.uc_mode)
+        # print(self.uc_arch + self.uc_mode)
         self.mu = Uc(self.uc_arch, self.uc_mode)
         self.mu.hook_add(UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED | UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_invalid)
         self.mu.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.hook_mem_access)
