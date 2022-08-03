@@ -6,7 +6,7 @@
 #  Copyright (c) 2017 Alexander Hude. All rights reserved.
 #
 
-UEMU_USE_AS_SCRIPT      = True    # Set to `False` if you want to load uEmu automatically as IDA Plugin
+UEMU_USE_AS_SCRIPT      = False    # Set to `False` if you want to load uEmu automatically as IDA Plugin
 
 # === Import
 
@@ -15,6 +15,13 @@ import threading
 import json
 import os
 import collections
+
+import os 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+# Add
+import sys
+sys.path.append(dir_path + '/../python/3/PyQt5')
 
 # IDA Python SDK
 from idaapi import *
@@ -1425,6 +1432,7 @@ class uEmuUnicornEngine(object):
             return False
 
     def run_from(self, address):
+        # print(self.uc_arch + self.uc_mode)
         self.mu = Uc(self.uc_arch, self.uc_mode)
         self.mu.hook_add(UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED | UC_HOOK_MEM_FETCH_UNMAPPED, self.hook_mem_invalid)
         self.mu.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, self.hook_mem_access)
@@ -1526,7 +1534,7 @@ class uEmuUnicornEngine(object):
             def result_handler():
                 if self.emuRunning:
                     disasm = UEMU_HELPERS.trim_spaces(IDAAPI_GetDisasm(self.pc, 0))
-                    if IDAAPI_AskYN(1, "Unhandled exception:\n   %s\nat:\n   0x%X: %s\n\nDo you want to skip this instruction?" % (e, self.pc, disasm)) != 1:
+                    if IDAAPI_AskYN(1, "Unhandled exception:\n   %s\nat:\n   0x%X: %s\n\nDo you want to skip or my emulate this instruction?" % (e, self.pc, disasm)) != 1:
                         IDAAPI_SetColor(self.pc, CIC_ITEM, UEMU_CONFIG.IDAViewColor_PC)
 
                         if self.owner.follow_pc():
@@ -1534,7 +1542,17 @@ class uEmuUnicornEngine(object):
 
                         self.emuRunning = False
                         return 1
-
+                    
+                    # HaToan - Emulator instruction, syscall, ....
+                    if self.owner.ext_hooks.instruction_exception is not None:
+                        uemu_log("! <I> Run emulate")
+                        if self.owner.ext_hooks.instruction_exception(self.pc):
+                            uemu_log("! <I> Run emulate [ %s ] - RUN Emulator to 0x%X" % (disasm, self.pc))
+                        else:
+                            uemu_log("! <E> Run emulate [ %s ] - Run Failed to 0x%X" % (disasm, self.pc))
+                            self.emuRunning = False
+                            return 1
+                            
                     self.pc = IDAAPI_NextHead(self.pc)
                     uemu_log("! <U> Unable to emulate [ %s ] - SKIP to 0x%X" % (disasm, self.pc))
 
@@ -1607,6 +1625,7 @@ class uEmuExtensionHooks:
     init_context = None
     trace_log = None
     emu_step = None
+    instruction_exception = None
 
 class uEmuPlugin(plugin_t, UI_Hooks):
 
@@ -1627,7 +1646,7 @@ class uEmuPlugin(plugin_t, UI_Hooks):
     unicornEngine = None
 
     settings = {
-        "follow_pc"     : False,
+        "follow_pc"     : True,
         "force_code"    : False,
         "trace_inst"    : False,
         "lazy_mapping"  : False,
@@ -1757,12 +1776,12 @@ class uEmuPlugin(plugin_t, UI_Hooks):
         self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":cpu_ext_view",      self.show_cpu_ext_context,  "Show CPU Extended Context",  "Show Extended Registers",   None,                   True    ))
         self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":stack_view",        self.show_stack_view,       "Show Stack View",            "Show Stack View",           None,                   True    ))
         self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":mem_view",          self.show_memory,           "Show Memory Range",          "Show Memory Range",         None,                   True    ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":mem_map",           self.show_mapped,           "Show Mapped Memory",         "Show Mapped Memory",        None,                   False   ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":fetch_segs",        self.fetch_segments,        "Fetch Segments",             "Fetch Segments",            None,                   False   ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem("-",                                     self.do_nothing,            "",                           None,                        None,                   False   ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":load_prj",          self.load_project,          "Load Project",               "Load Project",              None,                   False   ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":save_prj",          self.save_project,          "Save Project",               "Save Project",              None,                   False   ))
-        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":settings",          self.show_settings,         "Settings",                   "Settings",                  None,                   False   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":mem_map",           self.show_mapped,           "Show Mapped Memory",         "Show Mapped Memory",        None,                   True   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":fetch_segs",        self.fetch_segments,        "Fetch Segments",             "Fetch Segments",            None,                   True   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem("-",                                     self.do_nothing,            "",                           None,                        None,                   True   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":load_prj",          self.load_project,          "Load Project",               "Load Project",              None,                   True   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":save_prj",          self.save_project,          "Save Project",               "Save Project",              None,                   True   ))
+        self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":settings",          self.show_settings,         "Settings",                   "Settings",                  None,                   True   ))
         self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem("-",                                     self.do_nothing,            "",                           None,                        None,                   False   ))
         self.MENU_ITEMS.append(UEMU_HELPERS.MenuItem(self.plugin_name + ":unload",            self.unload_plugin,         "Unload Plugin",              "Unload Plugin",             None,                   False   ))
 

@@ -1,6 +1,13 @@
 ## Overview
 
-**MyuEmu** configure for window and show feature with click right
+## Custom
+- Load uEmu automatically as IDA Plugin
+        
+- Setting Default:
+    + follow_pc     : True,
+    + Fetch Segments, Load Project, Settings -> Click-right mouse
+
+- Add Feature: Emulator unkown instructions, syscall, ...
 
 **uEmu** is a tiny cute emulator plugin for IDA based on unicorn engine.
 
